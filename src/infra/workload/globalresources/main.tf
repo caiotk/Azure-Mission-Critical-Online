@@ -25,7 +25,8 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = var.environment == "e2e" ? false : true
     }
   }
- }
+  skip_provider_registration = true
+}
 
 provider "azapi" {}
 

@@ -11,7 +11,7 @@ terraform {
 
 provider "azurerm" {
   features {}
-  ##resource_provider_registrations = "none"
+  skip_provider_registration = true
 }
 
 data "azurerm_client_config" "current" {}
