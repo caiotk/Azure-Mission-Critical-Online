@@ -4,7 +4,7 @@ variables:
 
 # Resource prefix for this environment
 - name:  'prefix'
-  value: 'ngdaie2e'          # <===== CHANGE THIS! Must not be longer than 6 characters! Needs to be a unique prefix
+  value: 'ngdai2'          # <===== CHANGE THIS! Must not be longer than 6 characters! Needs to be a unique prefix
 
 # Host-encryption for compute resources (needs to be enabled on subscription-level)
 # https://learn.microsoft.com/en-us/azure/virtual-machines/linux/disks-enable-host-based-encryption-cli
@@ -20,7 +20,7 @@ variables:
 
 # Terraform state variables
 - name:  'terraformResourceGroup'
-  value: 'ngdaiterraformstate-rg'      # <===== CHANGE THIS VALUE IF NEEDED
+  value: 'ngdai2terraformstate-rg'      # <===== CHANGE THIS VALUE IF NEEDED
 - name:  'terraformStorageAccount'
   value: '$(prefix)tfstatestore'  # Needs to be a globally unique name
 
