@@ -10,3 +10,4 @@ locals.txt
 .vscode
 .tfstate
 .vs
+terraform_*.zip
