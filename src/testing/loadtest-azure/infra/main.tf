@@ -4,51 +4,40 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "3.116.0"
     }
-    azapi = {
-      source  = "Azure/azapi"
-      version = "1.14.0"
-    }
   }
 
-  backend "azurerm" {
-    application_insights {
-      disable_generated_rule = true
-    }
-  }
+  backend "azurerm" {}
 }
 
 provider "azurerm" {
-  features {
-    resource_group {
-      # Non-empty resource groups can only be deleted in e2e environments
-      # This will fail in all other envs (like int and prod)
-      prevent_deletion_if_contains_resources = var.environment == "e2e" ? false : true
-    }
-  }
+  features {}
   resource_provider_registrations = "none"
 }
 
-provider "azapi" {}
+data "azurerm_client_config" "current" {}
 
-resource "azurerm_resource_group" "global" {
-  name     = "${local.prefix}-global-rg"
-  location = local.location
-  tags = merge(local.default_tags,
-    {
-      "LastDeployedAt" = timestamp(),  # LastDeployedAt tag is only updated on the Resource Group, as otherwise every resource would be touched with every deployment
-      "LastDeployedBy" = var.queued_by # typically contains the value of Build.QueuedBy (provided by Azure DevOps)}
-    }
-  )
+resource "azurerm_resource_group" "deployment" {
+  name     = "${local.prefix}-loadtest-rg"
+  location = var.location
+  tags     = merge(local.default_tags, { "LastDeployedAt" = timestamp() })
 }
 
+resource "azurerm_load_test" "loadtest" {
+  name                = "${local.prefix}-azloadtest"
+  location            = azurerm_resource_group.deployment.location
+  resource_group_name = azurerm_resource_group.deployment.name
 
-resource "azurerm_resource_group" "monitoring" {
-  name     = "${local.prefix}-monitoring-rg"
-  location = local.location
-  tags = merge(local.default_tags,
-    {
-      "LastDeployedAt" = timestamp(),  # LastDeployedAt tag is only updated on the Resource Group, as otherwise every resource would be touched with every deployment
-      "LastDeployedBy" = var.queued_by # typically contains the value of Build.QueuedBy (provided by Azure DevOps)}
-    }
-  )
+  tags = local.default_tags
+}
+
+output "azureLoadTestName" {
+  value = azurerm_load_test.loadtest.name
+}
+
+output "azureLoadTestDataPlaneURI" {
+  value = azurerm_load_test.loadtest.data_plane_uri
+}
+
+output "azureLoadResourceGroup" {
+  value = azurerm_resource_group.deployment.name
 }
