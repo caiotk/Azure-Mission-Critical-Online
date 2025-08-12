@@ -46,7 +46,7 @@ variables:
 - name: 'azureLoadTestApiVersion' # data plane
   value: '2023-04-01-preview'
 - name: 'azureLoadTestLocation'
-  value: 'westus'
+  value: 'uksouth'
 - name: 'azureLoadTestEngineInstances'
   value: 1
 - name: 'azureLoadTestDurationSeconds'
