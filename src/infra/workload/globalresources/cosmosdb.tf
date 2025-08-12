@@ -36,7 +36,7 @@ resource "azurerm_cosmosdb_sql_container" "catalogItems" {
   resource_group_name = azurerm_cosmosdb_account.main.resource_group_name
   account_name        = azurerm_cosmosdb_account.main.name
   database_name       = azurerm_cosmosdb_sql_database.main.name
-  partition_key_path  = ["/id"]
+  partition_key_path  = "/id"
 
   # Enable TTL on the container. This will delete items which TTL has expired.
   default_ttl = -1 # means no documents will be deleted from the container by default. Only if explicitly set on an item.
@@ -68,7 +68,7 @@ resource "azurerm_cosmosdb_sql_container" "itemComments" {
   resource_group_name = azurerm_cosmosdb_account.main.resource_group_name
   account_name        = azurerm_cosmosdb_account.main.name
   database_name       = azurerm_cosmosdb_sql_database.main.name
-  partition_key_path  = ["/catalogItemId"]
+  partition_key_path  = "/catalogItemId"
 
   # Enable TTL on the container. This will delete items which TTL has expired.
   default_ttl = -1 # means no documents will be deleted from the container by default. Only if explicitly set on an item.
@@ -96,7 +96,7 @@ resource "azurerm_cosmosdb_sql_container" "itemRating" {
   resource_group_name = azurerm_cosmosdb_account.main.resource_group_name
   account_name        = azurerm_cosmosdb_account.main.name
   database_name       = azurerm_cosmosdb_sql_database.main.name
-  partition_key_path  = ["/catalogItemId"]
+  partition_key_path  = "/catalogItemId"
 
   # Enable TTL on the container. This will delete items which TTL has expired.
   default_ttl = -1 # means no documents will be deleted from the container by default. Only if explicitly set on an item.
