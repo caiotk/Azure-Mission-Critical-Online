@@ -12,9 +12,10 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
-      sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
-      sudo apt-get update && sudo apt install terraform=$(terraformVersion)
+      curl -LO https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+      unzip -o terraform_$(terraformVersion)_linux_amd64.zip
+      sudo mv terraform /usr/local/bin/
+      terraform -version
 
 # Setting env vars for Terraform Backend configuration
 # Using Terraform CLI instead of Terraform Tasks
