@@ -10,20 +10,25 @@ import CatalogService from './services/catalog-service'
 import CommentService from './services/comment-service'
 import RatingService from './services/rating-service'
 
-const appInsights = new ApplicationInsights(
-{
-   config: {
-      connectionString: window.APPLICATIONINSIGHTS_CONNECTION_STRING,
-      enableCorsCorrelation: true,
-      enableRequestHeaderTracking: true,
-      enableResponseHeaderTracking: true,
-      disableFetchTracking: false,
-      enableAutoRouteTracking: true
-   }
-});
+// Initialize Application Insights only if connection string is provided
+if (window.APPLICATIONINSIGHTS_CONNECTION_STRING && window.APPLICATIONINSIGHTS_CONNECTION_STRING.trim() !== "") {
+   const appInsights = new ApplicationInsights(
+   {
+      config: {
+         connectionString: window.APPLICATIONINSIGHTS_CONNECTION_STRING,
+         enableCorsCorrelation: true,
+         enableRequestHeaderTracking: true,
+         enableResponseHeaderTracking: true,
+         disableFetchTracking: false,
+         enableAutoRouteTracking: true
+      }
+   });
 
-appInsights.loadAppInsights();
-appInsights.trackPageView();
+   appInsights.loadAppInsights();
+   appInsights.trackPageView();
+} else {
+   console.log("Application Insights disabled - no connection string provided");
+}
 
 const app = createApp(App);
 
