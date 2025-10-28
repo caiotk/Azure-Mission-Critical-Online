@@ -1,0 +1,421 @@
+# Azure Mission-Critical Online - Cline Rules
+
+This file contains project-specific guidelines for the Cline AI coding assistant when working on the Azure Mission-Critical Online reference implementation.
+
+## Project Overview
+
+This is an **Azure Mission-Critical Online Reference Implementation** - a production-ready, highly-reliable cloud-native application showcasing mission-critical workload patterns on Microsoft Azure. The project consists of:
+
+- **Backend Services**: .NET 8.0 microservices running on Azure Kubernetes Service (AKS)
+- **Frontend**: HTML/JavaScript SPA hosted on Azure Storage (Static Website)
+- **Infrastructure**: Terraform-based Infrastructure-as-Code
+- **Deployment**: Helm charts, Azure DevOps, and GitHub Actions pipelines
+
+**IMPORTANT**: This repository is no longer actively maintained but serves as a reference implementation.
+
+## Repository Structure
+
+- `/docs/` - Architectural guidance, design decisions, and reference documentation
+- `/src/app/` - Application code for all services
+- `/src/infra/` - Infrastructure-as-Code (Terraform, Helm charts)
+- `/src/testing/` - Load testing and integration tests
+- `/src/config/` - Configuration files for deployments
+- `/.ado/pipelines/` - Azure DevOps CI/CD pipelines
+- `/.github/workflows/` - GitHub Actions workflows
+- `/.devcontainer/` - VS Code Dev Container configurations
+
+## Code Style and Conventions
+
+### C# / .NET Backend
+
+- **Target Framework**: .NET 8.0
+- **Naming**: Follow Microsoft C# naming conventions (PascalCase for types/methods, camelCase for locals)
+- **Architecture**: Use dependency injection, follow repository pattern for data access
+- **Security Context**: 
+  - Run containers as non-privileged user `workload`
+  - Use `readOnlyFilesystem: true` in Kubernetes deployments
+  - Never set `privileged: true` or `allowPrivilegeEscalation: true`
+- **Configuration**: Use `AlwaysOn.Shared/SysConfig.cs` for shared configuration
+- **Testing**: Use NUnit framework with Moq for mocking
+- **Health Checks**: All services must expose `/health/liveness` endpoint for Kubernetes probes
+
+### Frontend (UI)
+
+- **Technology**: HTML, JavaScript (no framework)
+- **Hosting**: Azure Storage Static Website (not containerized)
+- **Caching**: Aggressive caching via Azure Front Door
+- **Build**: Compiled in CI pipeline, uploaded to Azure Storage in CD pipeline
+
+### Infrastructure as Code
+
+- **Terraform**: Used for infrastructure provisioning
+- **Helm**: Used for Kubernetes workload deployment
+- **Network Policies**: All workload Helm charts must include network policies (enabled by default)
+- **Security**: Follow K8s security best practices in all Helm charts
+
+## Documentation Requirements
+
+### Critical Documentation Rules
+
+1. **README.md Updates**: Every source code component must have an accurate `README.md` that reflects its current state
+2. **Documentation Location**:
+   - Overarching architectural topics → `/docs/` directory
+   - Component-specific details → Component's `README.md` file
+3. **Documentation Changes**: Any code modifications must be reflected in documentation
+4. **Reference Links**: Link to [Microsoft Learn](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-intro) for architectural guidance
+
+### Required Documentation Sections
+
+Each component README should include:
+- Deployment instructions
+- Configuration settings
+- Networking and security details
+- Implementation details
+- Dependency injection setup (for .NET services)
+
+## Application Components
+
+### Backend Services (All .NET 8.0)
+
+1. **AlwaysOn.CatalogService**: REST API for catalog operations (CRUD, comments, ratings)
+   - Exposes Swagger UI at `/swagger` in development mode
+   - Uses Event Hub for asynchronous operations
+   - Implements Controllers pattern
+
+2. **AlwaysOn.BackgroundProcessor**: Processes events from Event Hub
+   - Handles asynchronous catalog operations
+   - Updates Cosmos DB and Azure Cache for Redis
+
+3. **AlwaysOn.HealthService**: Provides health check aggregation
+   - Monitors backend services and dependencies
+
+4. **AlwaysOn.Shared**: Common utilities and configuration
+   - `SysConfig.cs` contains shared configuration
+   - Custom Cosmos DB JSON serializer
+   - Shared models and interfaces
+
+### Frontend
+
+- **AlwaysOn.UI**: Single-page web application
+  - Browse catalog items
+  - View item details
+  - Post ratings and comments
+
+## Helm Charts
+
+Location: `/src/app/charts/`
+
+### Chart Configuration Standards
+
+All Helm charts must include:
+
+1. **Scaling Configuration**:
+   ```yaml
+   scale:
+     minReplicas: <value>
+     maxReplicas: <value>
+   ```
+
+2. **Network Policy** (enabled by default):
+   ```yaml
+   networkPolicy:
+     enabled: true
+     egressRange: "0.0.0.0/0"  # Customize as needed
+   ```
+
+3. **Security Context**:
+   ```yaml
+   securityContext:
+     readOnlyRootFilesystem: true
+     runAsNonRoot: true
+     allowPrivilegeEscalation: false
+     privileged: false
+   ```
+
+4. **Health Checks**: Reference `/health/liveness` endpoint
+
+### Network Policy Rules
+
+- CatalogService contains a `default-deny` policy
+- Allow ingress for necessary traffic (Ingress controller, cert-manager)
+- Restrict egress to required ranges only
+- If disabling NetworkPolicy for one chart, disable for all charts in the namespace
+
+## Configuration Management
+
+### .NET Configuration Loading
+
+Use `SysConfig.cs` in AlwaysOn.Shared for all configuration.
+
+Configuration sources (in order of precedence):
+1. Environment variables
+2. Azure Key Vault (via CSI secret driver mounted at `/mnt/secrets-store/`)
+3. Default values in code
+
+Required in `Program.cs` for Key Vault secrets:
+```csharp
+config.AddKeyPerFile(directoryPath: "/mnt/secrets-store/", optional: true, reloadOnChange: true);
+```
+
+### Common Configuration Settings
+
+- Cosmos DB connection settings
+- Azure Cache for Redis settings
+- Application Insights instrumentation
+- Event Hub connection strings
+
+### Service-Specific Settings
+
+- **CatalogService**: `FrontendSenderEventHubConnectionString`
+- **BackgroundProcessor**: Event Hub consumer settings
+- **HealthService**: Health check endpoints
+
+## Docker and Containerization
+
+### Dockerfile Standards
+
+- Multi-stage builds for .NET services
+- Run as non-root user `workload`
+- Minimize image layers
+- Use official Microsoft base images
+- Store Dockerfiles alongside component code
+
+### Container Security
+
+- Never run as root
+- Set filesystem to read-only where possible
+- Mount volumes for required write access (`/tmp`, `/var/log`)
+- Follow principle of least privilege
+
+## Testing
+
+### Unit Tests
+
+- **Framework**: NUnit 4.x
+- **Mocking**: Moq 4.x
+- **Coverage**: Use coverlet.collector
+- **Location**: `/src/app/AlwaysOn.Tests/`
+- **Naming**: Follow NUnit conventions (`[Test]`, `[TestFixture]`)
+
+### Test Standards
+
+- Write tests for business logic
+- Mock external dependencies (Cosmos DB, Event Hub, Redis)
+- Use async/await for asynchronous operations
+- Maintain test coverage for critical paths
+
+## CI/CD Pipelines
+
+### Azure DevOps Pipelines
+
+Location: `/.ado/pipelines/`
+
+- Build pipelines for each component
+- Multi-environment deployment (INT, E2E, PROD)
+- Configuration in `config/variables-values-<env>.yaml`
+
+### GitHub Workflows
+
+Location: `/.github/workflows/`
+
+- CodeQL security scanning
+- Defender for DevOps
+- DevSkim security linting
+- Dependabot integration
+
+### Pipeline Standards
+
+- Build and push container images to Azure Container Registry
+- Deploy Helm charts to AKS clusters
+- Update Azure Front Door configurations
+- Run health checks after deployment
+
+## Security Best Practices
+
+### Code Security
+
+1. **Secrets Management**: Never commit secrets; use Azure Key Vault
+2. **Authentication**: Implement proper API authentication (see `Auth/` directory)
+3. **Input Validation**: Validate all API inputs
+4. **Dependency Updates**: Keep dependencies current (Dependabot enabled)
+5. **Security Scanning**: CodeQL and DevSkim run on all PRs
+
+### Infrastructure Security
+
+1. **Network Isolation**: Use Network Policies for pod-to-pod traffic
+2. **Private Endpoints**: Use for Azure PaaS services where possible
+3. **Least Privilege**: Apply minimal permissions to service principals
+4. **Azure Policy**: Audit security configurations in Kubernetes
+
+### Container Security
+
+1. **Non-privileged**: All containers run as non-root
+2. **Read-only Filesystem**: Enable where possible
+3. **No Privilege Escalation**: Always set to false
+4. **Security Scanning**: Scan images for vulnerabilities
+
+## Development Workflows
+
+### Local Development
+
+Use VS Code Dev Containers:
+- `.devcontainer/dotnet-development/` for .NET work
+- `.devcontainer/js-development/` for frontend work
+- `.devcontainer/docs-editing/` for documentation
+
+### Environment Variables
+
+Development mode:
+```bash
+export ASPNETCORE_ENVIRONMENT=Development
+```
+
+This enables:
+- Swagger UI at `/swagger`
+- Detailed error messages
+- Hot reload capabilities
+
+### Making Changes
+
+1. **Fork and Branch**: Create fork, work in feature branch
+2. **Focused PRs**: Keep PRs focused on specific areas
+3. **Documentation**: Update relevant docs in same PR
+4. **Testing**: Run tests locally before pushing
+5. **PR Review**: Address feedback from mission-critical team
+
+## Common Patterns
+
+### Dependency Injection (.NET)
+
+Register services in `Startup.cs`:
+```csharp
+services.AddSingleton<ICatalogService, CatalogService>();
+services.AddScoped<IRepository, CosmosRepository>();
+```
+
+### Async Operations
+
+Use Event Hub for async operations:
+1. API receives request → sends to Event Hub
+2. BackgroundProcessor consumes event
+3. Updates database and cache
+4. High throughput achieved
+
+### Error Handling
+
+- Use structured logging (Serilog)
+- Log to Application Insights
+- Return appropriate HTTP status codes
+- Handle transient failures with retry policies
+
+## Monitoring and Observability
+
+### Application Insights
+
+- Instrumentation key loaded from configuration
+- TODO: Migrate to connection string (noted in Program.cs files)
+- Track custom events and metrics
+- Distributed tracing across services
+
+### Logging
+
+- Use Serilog for structured logging
+- Log to console and Application Insights
+- Include correlation IDs for request tracking
+- Log levels: Debug (dev), Information (prod)
+
+### Grafana Dashboards
+
+Location: `/src/infra/monitoring/grafana/`
+
+- Custom health model panel
+- Infrastructure and workload metrics
+- Deploy via Terraform (`terraform/` subdirectory)
+
+## Load Testing
+
+Location: `/src/testing/userload-generator/`
+
+- Azure Functions-based load generator
+- Locust-based load testing
+- Azure Load Testing integration
+- Deploy via dedicated pipelines
+
+## Troubleshooting
+
+### Common Issues
+
+Refer to:
+- [FAQ](./docs/reference-implementation/FAQ.md)
+- [Troubleshooting Guide](./docs/reference-implementation/Troubleshooting.md)
+
+### Known TODOs
+
+1. **Application Insights**: Transition from Instrumentation Key to Connection String
+   - Affects: Program.cs in CatalogService, BackgroundProcessor, HealthService
+   
+2. **Cosmos Serializer**: Replace async serialization with sync variants
+   - Location: `AlwaysOn.Shared/CosmosNetSerializer.cs`
+
+## Code Review Checklist
+
+Before submitting PRs:
+
+- [ ] Code follows .NET/JavaScript conventions
+- [ ] Security best practices implemented
+- [ ] Documentation updated (README.md and/or /docs)
+- [ ] Tests added/updated as needed
+- [ ] Helm charts include security context and network policies
+- [ ] No secrets committed to repository
+- [ ] Container runs as non-root user
+- [ ] Health check endpoints exposed
+- [ ] Logging and monitoring instrumented
+- [ ] Configuration externalized (no hardcoded values)
+
+## Important Notes
+
+### Mission-Critical Principles
+
+This implementation demonstrates:
+- **High Availability**: Multi-region deployment via stamps
+- **Scalability**: Auto-scaling with HPA, Front Door load balancing
+- **Resilience**: Retry policies, circuit breakers, health checks
+- **Observability**: Comprehensive logging, metrics, distributed tracing
+- **Security**: Defense in depth, least privilege, network isolation
+- **Performance**: Caching (Redis, Front Door), async processing
+- **Automation**: IaC, CI/CD, infrastructure validation
+
+### Azure Services Used
+
+- Azure Kubernetes Service (AKS)
+- Azure Cosmos DB
+- Azure Cache for Redis
+- Azure Event Hub
+- Azure Front Door
+- Azure Storage (Static Website)
+- Azure Key Vault
+- Azure Application Insights
+- Azure Container Registry
+- Azure Monitor
+
+## References
+
+- [Microsoft Learn - Mission-Critical Overview](https://learn.microsoft.com/azure/architecture/framework/mission-critical/mission-critical-overview)
+- [Mission-Critical Design Methodology](https://learn.microsoft.com/azure/architecture/framework/mission-critical/mission-critical-design-methodology)
+- [Mission-Critical Baseline Architecture](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks-mission-critical/mission-critical-intro)
+- [Getting Started Guide](./docs/reference-implementation/Getting-Started.md)
+- [Reference Implementation Documentation](./docs/README.md)
+
+## Contributing
+
+This is a reference implementation. For contributions:
+
+1. Read [CONTRIBUTE.md](./CONTRIBUTE.md)
+2. Agree to CLA (automated via PR)
+3. Follow [Code of Conduct](./CODE_OF_CONDUCT.md)
+4. Keep PRs focused and well-documented
+5. Ensure documentation reflects code changes
+
+---
+
+**Remember**: This is a showcase of mission-critical patterns and best practices. Every change should maintain or enhance the reliability, security, and operational excellence of the reference implementation.
